@@ -22,6 +22,7 @@ jobs:
         ref: main
 
     - name: Authenticate with GCP using Workload Identity Federation
+      id: auth
       uses: google-github-actions/auth@v1
       with:
         workload_identity_provider: "projects/462743718191/locations/global/workloadIdentityPools/my-pool/providers/github-provider"
