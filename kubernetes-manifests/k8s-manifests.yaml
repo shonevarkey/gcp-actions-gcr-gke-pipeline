@@ -1,0 +1,102 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: coffee-shop
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: coffee-shop
+  template:
+    metadata:
+      labels:
+        app: coffee-shop
+    spec:
+      securityContext:
+        fsGroup: 2000
+      containers:
+      - name: barista-coffee-app
+        image: gcr.io/hypernova-439518/coffee-shop:COMMIT_TAG
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 5000
+        securityContext:
+          runAsUser: 1000
+          runAsGroup: 3000
+          readOnlyRootFilesystem: true
+          allowPrivilegeEscalation: false
+
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "200m"
+
+              
+        env:
+        - name: DB_HOST
+          valueFrom:
+            secretKeyRef:
+              name: db-host-k8s-secret
+              key: host
+        - name: DB_USER
+          valueFrom:
+            secretKeyRef:
+              name: db-user-k8s-secret
+              key: user
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: db-password-k8s-secret
+              key: password
+        - name: DB_NAME
+          valueFrom:
+            secretKeyRef:
+              name: db-name-k8s-secret
+              key: name
+        - name: SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: secret-key-k8s-secret
+              key: secret
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: coffee-shop
+spec:
+  type: LoadBalancer
+  selector:
+    app: coffee-shop
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 5000
+
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: coffee-shop-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: coffee-shop
+  minReplicas: 2
+  maxReplicas: 4
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 50
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 70
