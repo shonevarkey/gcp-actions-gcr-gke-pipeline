@@ -1,0 +1,77 @@
+name: Deploy to GKE
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  id-token: write 
+  contents: read    
+
+jobs:
+  build-and-deploy:
+    name: Build and Deploy to GKE
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code from gcp-github-actions-gke-pipeline repository
+      uses: actions/checkout@v3
+      with:
+        repository: shonevarkey/gcp-actions-gcr-gke-pipeline
+        ref: main
+
+    - name: Authenticate with GCP using Workload Identity Federation
+      uses: google-github-actions/auth@v1
+      with:
+        workload_identity_provider: "projects/462743718191/locations/global/workloadIdentityPools/my-pool/providers/github-provider"
+        service_account: "github-actions-sa@${{ vars.GCP_PROJECT_ID }}.iam.gserviceaccount.com"
+
+    - name: Authenticate Docker with Google Container Registry
+      run: |
+        gcloud auth configure-docker gcr.io --quiet
+        gcloud auth print-access-token | docker login -u oauth2accesstoken --password-stdin https://gcr.io
+
+    - name: Build and Push Docker Image with Commit Hash Tagging
+      run: |
+        IMAGE_TAG=$(echo $GITHUB_SHA | cut -c1-7)
+        docker build -t gcr.io/${{ vars.GCP_PROJECT_ID }}/coffee-shop:$IMAGE_TAG ./code
+        docker push gcr.io/${{ vars.GCP_PROJECT_ID }}/coffee-shop:$IMAGE_TAG
+        echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV
+        echo "Recording successful build: $IMAGE_TAG"
+        echo "$IMAGE_TAG" > previous_image_tag.txt
+        cat previous_image_tag.txt
+
+    - name: Save Image Tag for Rollback
+      uses: actions/upload-artifact@v3
+      with:
+        name: previous-image-tag
+        path: previous_image_tag.txt
+
+    - name: Configure kubectl
+      uses: google-github-actions/get-gke-credentials@v1
+      with:
+        cluster_name: ${{ vars.GKE_CLUSTER_NAME }}
+        location: ${{ vars.GKE_CLUSTER_REGION }}
+
+    - name: Update Image Tag in Kubernetes Manifest
+      run: |
+        sed -i "s|gcr.io/${{ vars.GCP_PROJECT_ID }}/coffee-shop:COMMIT_TAG|gcr.io/${{ vars.GCP_PROJECT_ID }}/coffee-shop:$IMAGE_TAG|g" ./gcp-actions-gcr-gke-pipeline/kubernetes-manifests/k8s-manifests.yaml
+
+    - name: Check Updated Kubernetes Manifest
+      run: |
+        cat ./gcp-actions-gcr-gke-pipeline/kubernetes-manifests/k8s-manifests.yaml
+      
+    - name: Deploy to GKE
+      run: |
+        echo "Deploying to GKE..."
+        kubectl apply -f gcp-actions-gcr-gke-pipeline/kubernetes-manifests/k8s-manifests.yaml
+        kubectl apply -f gcp-actions-gcr-gke-pipeline/kubernetes-manifests/external-secrets.yaml
+        kubectl rollout status deployment/coffee-shop
+
+    - name: Rollback on Failure
+      if: failure()
+      run: |
+        echo "Rolling back to the previous version..."
+        kubectl rollout undo deployment coffee-shop
+        echo "Rollback complete!"
