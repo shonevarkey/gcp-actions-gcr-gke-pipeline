@@ -11,7 +11,7 @@ permissions:
 
 env:
   PROJECT_ROOT: $GITHUB_WORKSPACE
-  K8S_MANIFESTS_PATH: ./gcp-actions-gcr-gke-pipeline/kubernetes-manifests  
+  K8S_MANIFESTS_PATH: ./kubernetes-manifests  
 
 jobs:
   build-and-deploy:
@@ -65,17 +65,17 @@ jobs:
 
     - name: Update Image Tag in Kubernetes Manifest
       run: |
-        sed -i "s|gcr.io/${{ vars.GCP_PROJECT_ID }}/coffee-shop:COMMIT_TAG|gcr.io/${{ vars.GCP_PROJECT_ID }}/coffee-shop:$IMAGE_TAG|g" ${{ env.K8S_MANIFESTS_PATH }}/k8s-manifests.yaml
+        sed -i "s|gcr.io/${{ vars.GCP_PROJECT_ID }}/coffee-shop:COMMIT_TAG|gcr.io/${{ vars.GCP_PROJECT_ID }}/coffee-shop:$IMAGE_TAG|g" ./kubernetes-manifests/k8s-manifests.yaml
 
     - name: Check Updated Kubernetes Manifest
       run: |
-        cat ${{ env.K8S_MANIFESTS_PATH }}/k8s-manifests.yaml
+        cat ./kubernetes-manifests/k8s-manifests.yaml
       
     - name: Deploy to GKE
       run: |
         echo "Deploying to GKE..."
-        kubectl apply -f ${{ env.K8S_MANIFESTS_PATH }}/k8s-manifests.yaml
-        kubectl apply -f ${{ env.K8S_MANIFESTS_PATH }}/external-secrets.yaml
+        kubectl apply -f ./kubernetes-manifests/k8s-manifests.yaml
+        kubectl apply -f ./kubernetes-manifests/external-secrets.yaml
         kubectl rollout status deployment/coffee-shop
 
     - name: Rollback on Failure
