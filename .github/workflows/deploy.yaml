@@ -44,7 +44,7 @@ jobs:
         cat previous_image_tag.txt
 
     - name: Save Image Tag for Rollback
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: previous-image-tag
         path: previous_image_tag.txt
