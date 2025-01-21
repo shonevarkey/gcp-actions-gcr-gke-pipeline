@@ -62,7 +62,7 @@ This project demonstrates the deployment of the `coffee-shop` application to a *
 
    ```bash
    git clone https://github.com/shonevarkey/gcp-actions-gcr-gke-pipeline.git
-   cd gcp-github-actions-gke-pipeline
+   cd gcp-actions-gcr-gke-pipeline
    ```
    
 3. **Configure Secrets in GCP**:
