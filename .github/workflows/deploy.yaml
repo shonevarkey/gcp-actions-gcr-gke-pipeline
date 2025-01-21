@@ -59,7 +59,10 @@ jobs:
 
     - name: List files for debugging
       run: |
-        ls -R ./gcp-actions-gcr-gke-pipeline
+        echo "Current directory:"
+        pwd
+        echo "Listing files:"
+        ls -R
 
     - name: Update Image Tag in Kubernetes Manifest
       run: |
