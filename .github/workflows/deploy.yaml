@@ -28,7 +28,6 @@ jobs:
         workload_identity_provider: "projects/462743718191/locations/global/workloadIdentityPools/github-pool/providers/github-provider"
         service_account: "github-actions-sa@hypernova-439518.iam.gserviceaccount.com"
 
-    
     - name: Log in to Google Container Registry
       run: |
         gcloud auth configure-docker gcr.io --quiet
@@ -56,21 +55,10 @@ jobs:
         cluster_name: ${{ vars.GKE_CLUSTER_NAME }}
         location: ${{ vars.GKE_CLUSTER_REGION }}
 
-    - name: List files for debugging
-      run: |
-        echo "Current directory:"
-        pwd
-        echo "Listing files:"
-        ls -R
-
     - name: Update Image Tag in Kubernetes Manifest
       run: |
         sed -i "s|gcr.io/${{ vars.GCP_PROJECT_ID }}/coffee-shop:COMMIT_TAG|gcr.io/${{ vars.GCP_PROJECT_ID }}/coffee-shop:$IMAGE_TAG|g" ./kubernetes-manifests/k8s-manifests.yaml
-
-    - name: Check Updated Kubernetes Manifest
-      run: |
-        cat ./kubernetes-manifests/k8s-manifests.yaml
-      
+  
     - name: Deploy to GKE
       run: |
         echo "Deploying to GKE..."
