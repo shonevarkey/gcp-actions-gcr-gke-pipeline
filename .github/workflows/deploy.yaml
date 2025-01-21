@@ -9,11 +9,15 @@ permissions:
   id-token: write 
   contents: read  
 
+env:
+  PROJECT_ROOT: $GITHUB_WORKSPACE
+  K8S_MANIFESTS_PATH: ./gcp-actions-gcr-gke-pipeline/kubernetes-manifests  
+
 jobs:
   build-and-deploy:
     name: Build and Deploy to GKE
     runs-on: ubuntu-latest
-
+    
     steps:
     - name: Checkout code from repository
       uses: actions/checkout@v3
@@ -24,9 +28,7 @@ jobs:
         workload_identity_provider: "projects/462743718191/locations/global/workloadIdentityPools/github-pool/providers/github-provider"
         service_account: "github-actions-sa@hypernova-439518.iam.gserviceaccount.com"
 
-    - name: Debug Access Token
-      run: echo "${{ steps.auth.outputs.access_token }}"
-
+    
     - name: Log in to Google Container Registry
       run: |
         gcloud auth configure-docker gcr.io --quiet
@@ -63,17 +65,17 @@ jobs:
 
     - name: Update Image Tag in Kubernetes Manifest
       run: |
-        sed -i "s|gcr.io/${{ vars.GCP_PROJECT_ID }}/coffee-shop:COMMIT_TAG|gcr.io/${{ vars.GCP_PROJECT_ID }}/coffee-shop:$IMAGE_TAG|g" ./gcp-actions-gcr-gke-pipeline/kubernetes-manifests/k8s-manifests.yaml
+        sed -i "s|gcr.io/${{ vars.GCP_PROJECT_ID }}/coffee-shop:COMMIT_TAG|gcr.io/${{ vars.GCP_PROJECT_ID }}/coffee-shop:$IMAGE_TAG|g" ${{ env.K8S_MANIFESTS_PATH }}/k8s-manifests.yaml
 
     - name: Check Updated Kubernetes Manifest
       run: |
-        cat ./gcp-actions-gcr-gke-pipeline/kubernetes-manifests/k8s-manifests.yaml
+        cat ${{ env.K8S_MANIFESTS_PATH }}/k8s-manifests.yaml
       
     - name: Deploy to GKE
       run: |
         echo "Deploying to GKE..."
-        kubectl apply -f gcp-actions-gcr-gke-pipeline/kubernetes-manifests/k8s-manifests.yaml
-        kubectl apply -f gcp-actions-gcr-gke-pipeline/kubernetes-manifests/external-secrets.yaml
+        kubectl apply -f ${{ env.K8S_MANIFESTS_PATH }}/k8s-manifests.yaml
+        kubectl apply -f ${{ env.K8S_MANIFESTS_PATH }}/external-secrets.yaml
         kubectl rollout status deployment/coffee-shop
 
     - name: Rollback on Failure
